@@ -10,12 +10,16 @@ import co.rsk.bitcoinj.store.BlockStoreException;
 import co.rsk.bitcoinj.wallet.Wallet;
 import co.rsk.blockchain.utils.BlockGenerator;
 import co.rsk.config.BridgeConstants;
+import co.rsk.config.BridgeMainNetConstants;
 import co.rsk.config.BridgeRegTestConstants;
+import co.rsk.config.BridgeTestNetConstants;
 import co.rsk.core.RskAddress;
 import co.rsk.crypto.Keccak256;
 import co.rsk.db.MutableTrieCache;
 import co.rsk.db.MutableTrieImpl;
 import co.rsk.peg.BridgeSupport.TxType;
+import co.rsk.peg.ReleaseTransactionSet.Entry;
+import co.rsk.peg.RepositoryBtcBlockStoreWithCache.Factory;
 import co.rsk.peg.bitcoin.CoinbaseInformation;
 import co.rsk.peg.bitcoin.MerkleBranch;
 import co.rsk.peg.btcLockSender.BtcLockSender;
@@ -33,6 +37,7 @@ import co.rsk.peg.whitelist.OneOffWhiteListEntry;
 import co.rsk.test.builders.BridgeSupportBuilder;
 import co.rsk.trie.Trie;
 import com.google.common.collect.Lists;
+import java.util.stream.Collector;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.ec.CustomNamedCurves;
 import org.bouncycastle.crypto.params.ECDomainParameters;
@@ -41,6 +46,7 @@ import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.util.encoders.Hex;
 import org.ethereum.config.Constants;
 import org.ethereum.config.blockchain.upgrades.ActivationConfig;
+import org.ethereum.config.blockchain.upgrades.ActivationConfig.ForBlock;
 import org.ethereum.config.blockchain.upgrades.ActivationConfigsForTest;
 import org.ethereum.config.blockchain.upgrades.ConsensusRule;
 import org.ethereum.core.Block;
@@ -7534,7 +7540,7 @@ public class BridgeSupportTest {
     }
 
     @Test
-    public void getBytesFromBtcAddress() {
+    public void getBytesFromBtcAddress_using_p2pkh() {
         BridgeSupport bridgeSupport = getBridgeSupport(bridgeConstants, mock(BridgeStorageProvider.class));
 
         Address btcAddress = Address.fromBase58(
@@ -7546,6 +7552,89 @@ public class BridgeSupportTest {
         byte[] obtainedBytes = bridgeSupport.getBytesFromBtcAddress(btcAddress);
 
         Assert.assertArrayEquals(expectedBytes, obtainedBytes);
+    }
+
+    @Test
+    public void getBytesFromBtcAddress_using_p2sh() {
+        BridgeSupport bridgeSupport = getBridgeSupport(bridgeConstants, mock(BridgeStorageProvider.class));
+
+        Address btcAddress = Address.fromBase58(
+            BridgeTestNetConstants.getInstance().getBtcParams(),
+            "2MvvYD9uDsTdnyLcixrCkPSXmoZbVJEeydh"
+        );
+
+        byte[] expectedBytes = Hex.decode("0014e2520e3eed56ccecb026b2c4bf9a318f1d4d8eb7");
+        byte[] obtainedBytes = bridgeSupport.getBytesFromBtcAddress(btcAddress);
+
+        Assert.assertArrayEquals(expectedBytes, obtainedBytes);
+    }
+
+    @Test
+    public void migrating_many_utxos_works() throws IOException {
+        BridgeConstants bc = BridgeRegTestConstants.getInstance();
+
+        List<FederationMember> oldFedMembers = new ArrayList<>();
+        int oldFedMembersAmount = 13;
+        for (int i = 0; i < oldFedMembersAmount; i++) {
+            oldFedMembers.add(FederationMember.getFederationMemberFromKey(new BtcECKey()));
+        }
+
+        Federation oldFed = new Federation(
+            oldFedMembers,
+            Instant.now(),
+            0,
+            bc.getBtcParams()
+        );
+        Federation newFed = new Federation(
+            Arrays.asList(
+                FederationMember.getFederationMemberFromKey(new BtcECKey()),
+                FederationMember.getFederationMemberFromKey(new BtcECKey()),
+                FederationMember.getFederationMemberFromKey(new BtcECKey())
+            ),
+            Instant.now(),
+            1,
+            bc.getBtcParams()
+        );
+
+        ReleaseTransactionSet rts = new ReleaseTransactionSet(Collections.emptySet());
+        BridgeStorageProvider bsp = mock(BridgeStorageProvider.class);
+        when(bsp.getReleaseTransactionSet()).thenReturn(rts);
+        when(bsp.getReleaseRequestQueue()).thenReturn(new ReleaseRequestQueue(new ArrayList<>()));
+
+        BridgeEventLogger bel = mock(BridgeEventLogger.class);
+        BtcLockSenderProvider blsp = mock(BtcLockSenderProvider.class);
+        PeginInstructionsProvider pip = mock(PeginInstructionsProvider.class);
+        Repository r = mock(Repository.class);
+
+        Block b = mock(Block.class);
+        // Set block right after the migration should start
+        when(b.getNumber()).thenReturn(newFed.getCreationBlockNumber() + bc.getFederationActivationAge() + bc.getFundsMigrationAgeSinceActivationBegin() + 1);
+
+        Context c = Context.getOrCreate(bc.getBtcParams());
+
+        List<UTXO> utxosToMigrate = new ArrayList<>();
+        int utxosToCreate = 400;
+        for (int i = 0; i < utxosToCreate; i++) {
+            utxosToMigrate.add(new UTXO(Sha256Hash.of(new byte[]{(byte)i}), 0, Coin.COIN, 0, false, oldFed.getP2SHScript()));
+        }
+
+        FederationSupport fs = mock(FederationSupport.class);
+        when(fs.getActiveFederation()).thenReturn(newFed);
+        when(fs.getRetiringFederation()).thenReturn(oldFed);
+        when(fs.getRetiringFederationBtcUTXOs()).thenReturn(utxosToMigrate);
+
+        Factory f = mock(Factory.class);
+        ForBlock fb = mock(ForBlock.class);
+        BridgeSupport bs = new BridgeSupport(bc, bsp, bel, blsp, pip, r, b, c, fs, f, fb);
+
+        bs.updateCollections(mock(Transaction.class));
+
+        Assert.assertEquals(rts.getEntries().size(), 1);
+        // As the size exceeds the max size for a btc tx it should have just half of the inputs
+        Assert.assertEquals(
+            utxosToCreate / 2,
+            new ArrayList<>(rts.getEntries()).get(0).getTransaction().getInputs().size()
+        );
     }
 
     private Address getFastBridgeFederationAddress() {

@@ -2076,10 +2076,17 @@ public class BridgeUtilsTest {
     }
 
     @Test
-    public void extractAddressVersionFromBytes() throws BridgeIllegalArgumentException {
+    public void extractAddressVersionFromBytes_p2pkh() throws BridgeIllegalArgumentException {
         byte[] addressBytes = Hex.decode("6f0febdbf4739e9fe6724370a7e99cb25d7be5ca99");
         int obtainedVersion = BridgeUtils.extractAddressVersionFromBytes(addressBytes);
         Assert.assertEquals(111, obtainedVersion);
+    }
+
+    @Test
+    public void extractAddressVersionFromBytes_p2sh() throws BridgeIllegalArgumentException {
+        byte[] addressBytes = Hex.decode("c42857cf8c963a66e339b9326061d12d5f0c76f1f1");
+        int obtainedVersion = BridgeUtils.extractAddressVersionFromBytes(addressBytes);
+        Assert.assertEquals(196, obtainedVersion);
     }
 
     @Test

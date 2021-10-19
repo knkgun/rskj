@@ -23,7 +23,10 @@ import co.rsk.bitcoinj.script.Script;
 import co.rsk.bitcoinj.wallet.SendRequest;
 import co.rsk.bitcoinj.wallet.Wallet;
 import co.rsk.config.BridgeRegTestConstants;
+import co.rsk.peg.ReleaseTransactionBuilder.BuildResult;
+import co.rsk.peg.bitcoin.RskAllowUnconfirmedCoinSelector;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import org.ethereum.config.blockchain.upgrades.ActivationConfig;
 import org.ethereum.config.blockchain.upgrades.ConsensusRule;
@@ -326,6 +329,44 @@ public class ReleaseTransactionBuilderTest {
         Assert.assertFalse(result.isPresent());
         verify(wallet, never()).getWatchedAddresses();
         verify(wallet, never()).getUTXOProvider();
+    }
+
+    @Test
+    public void max_accepted_pegout_size() {
+        NetworkParameters networkParameters = BridgeRegTestConstants.getInstance().getBtcParams();
+
+        int fedSize = 13;
+        List<FederationMember> members = new ArrayList<>();
+        for (int i = 1; i <= fedSize; i++) {
+            members.add(FederationMember.getFederationMemberFromKey(new BtcECKey()));
+        }
+
+        Federation fed = new ErpFederation(
+            members,
+            Instant.now(),
+            0,
+            networkParameters,
+            BridgeRegTestConstants.getInstance().getErpFedPubKeysList(),
+            BridgeRegTestConstants.getInstance().getErpFedActivationDelay()
+        );
+        Context context = Context.getOrCreate(networkParameters);
+        Wallet wallet = new BridgeBtcWallet(context, Arrays.asList(fed));
+
+        List<UTXO> utxos = new ArrayList<>();
+        int utxosToHave = 147;
+        for (int i = 1; i <= utxosToHave; i++) {
+            utxos.add(new UTXO(Sha256Hash.of(new byte[]{(byte)i}), 0, Coin.COIN, 0, false, fed.getP2SHScript()));
+        }
+        RskUTXOProvider utxoProvider = new RskUTXOProvider(networkParameters, utxos);
+        wallet.setUTXOProvider(utxoProvider);
+        wallet.setCoinSelector(new RskAllowUnconfirmedCoinSelector());
+        Assert.assertEquals(utxosToHave, utxos.size());
+        Assert.assertEquals(Coin.COIN.multiply(utxosToHave), wallet.getBalance());
+
+        ReleaseTransactionBuilder thisBuilder = new ReleaseTransactionBuilder(networkParameters, wallet, fed.getAddress(), Coin.SATOSHI, mock(ActivationConfig.ForBlock.class));
+
+        Optional<BuildResult> result = thisBuilder.buildEmptyWalletTo(fed.getAddress());
+        Assert.assertTrue(result.isPresent());
     }
 
     @Test
