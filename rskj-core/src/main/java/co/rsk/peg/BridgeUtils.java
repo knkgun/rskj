@@ -547,6 +547,10 @@ public class BridgeUtils {
         return addressBytes[0];
     }
 
+    public static int extractAddressVersionFromUnsignedBytes(byte[] addressBytes) throws BridgeIllegalArgumentException {
+        return extractAddressVersionFromBytes(addressBytes) & 0xff;
+    }
+
     public static byte[] extractHash160FromBytes(byte[] addressBytes)
         throws BridgeIllegalArgumentException {
         if (addressBytes == null || addressBytes.length == 0) {

@@ -38,6 +38,7 @@ import co.rsk.test.builders.BridgeSupportBuilder;
 import co.rsk.trie.Trie;
 import com.google.common.collect.Lists;
 import java.util.stream.Collector;
+import javassist.bytecode.ByteArray;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.ec.CustomNamedCurves;
 import org.bouncycastle.crypto.params.ECDomainParameters;
@@ -7555,8 +7556,10 @@ public class BridgeSupportTest {
     }
 
     @Test
-    public void getBytesFromBtcAddress_using_p2sh() {
-        BridgeSupport bridgeSupport = getBridgeSupport(bridgeConstants, mock(BridgeStorageProvider.class));
+    public void getBytesFromBtcAddress_using_p2sh_pre_rskip284() {
+        ForBlock activations = mock(ForBlock.class);
+        when(activations.isActive(ConsensusRule.RSKIP284)).thenReturn(false);
+        BridgeSupport bridgeSupport = getBridgeSupport(bridgeConstants, mock(BridgeStorageProvider.class), activations);
 
         Address btcAddress = Address.fromBase58(
             BridgeTestNetConstants.getInstance().getBtcParams(),
@@ -7564,6 +7567,35 @@ public class BridgeSupportTest {
         );
 
         byte[] expectedBytes = Hex.decode("0014e2520e3eed56ccecb026b2c4bf9a318f1d4d8eb7");
+        byte[] obtainedBytes = bridgeSupport.getBytesFromBtcAddress(btcAddress);
+
+        Assert.assertFalse(expectedBytes.equals(obtainedBytes));
+        Assert.assertTrue(obtainedBytes.length == 22);
+    }
+
+    @Test
+    public void getBytesFromBtcAddress_using_p2sh_post_rskip284() {
+        ForBlock activations = mock(ForBlock.class);
+        when(activations.isActive(ConsensusRule.RSKIP284)).thenReturn(true);
+        BridgeSupport bridgeSupport = getBridgeSupport(bridgeConstants, mock(BridgeStorageProvider.class), activations);
+
+        int version = bridgeConstants.getBtcParams().getP2SHHeader();
+        BtcECKey pk = BtcECKey.fromPublicOnly(
+            Hex.decode("0391cb886d9bee12adec63ad847668569a329750d9726134144bd5205610946f54")
+        );
+        byte[] pubkeyHash = HashUtil.ripemd160(Sha256Hash.hash(pk.getPubKey()));
+
+        Address btcAddress = Address.fromP2SHScript(
+            bridgeConstants.getBtcParams(),
+            ScriptBuilder.createP2SHOutputScript(pubkeyHash)
+        );
+
+        // TODO: it fails on this assertion.
+        Assert.assertEquals("2NEXdqx72pUa2n3qXybUpuntkDczQy2BK9P", btcAddress.toBase58());
+
+        byte[] expectedBytes = new byte[21];
+        System.arraycopy(ByteUtil.intToBytesNoLeadZeroes(version), 0, expectedBytes, 0, 1);
+        System.arraycopy(btcAddress.getHash160(), 0, expectedBytes, 1, 20);
         byte[] obtainedBytes = bridgeSupport.getBytesFromBtcAddress(btcAddress);
 
         Assert.assertArrayEquals(expectedBytes, obtainedBytes);

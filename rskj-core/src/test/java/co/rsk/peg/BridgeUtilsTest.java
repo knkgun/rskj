@@ -2085,7 +2085,7 @@ public class BridgeUtilsTest {
     @Test
     public void extractAddressVersionFromBytes_p2sh() throws BridgeIllegalArgumentException {
         byte[] addressBytes = Hex.decode("c42857cf8c963a66e339b9326061d12d5f0c76f1f1");
-        int obtainedVersion = BridgeUtils.extractAddressVersionFromBytes(addressBytes);
+        int obtainedVersion = BridgeUtils.extractAddressVersionFromUnsignedBytes(addressBytes);
         Assert.assertEquals(196, obtainedVersion);
     }
 

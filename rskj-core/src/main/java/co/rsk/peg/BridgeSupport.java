@@ -2711,8 +2711,10 @@ public class BridgeSupport {
 
     protected byte[] getBytesFromBtcAddress(Address btcAddress) {
         byte[] hash160 = btcAddress.getHash160();
-        byte[] version = BigInteger.valueOf(btcAddress.getVersion()).toByteArray();
-        byte[] btcAddressBytes = new byte[hash160.length + version.length];
+        byte[] version = activations.isActive(ConsensusRule.RSKIP284) ?
+            ByteUtil.intToBytesNoLeadZeroes(btcAddress.getVersion()) :
+            BigInteger.valueOf(btcAddress.getVersion()).toByteArray();
+        byte[] btcAddressBytes = new byte[version.length + hash160.length];
         System.arraycopy(version, 0, btcAddressBytes, 0, version.length);
         System.arraycopy(hash160, 0, btcAddressBytes, version.length, hash160.length);
 

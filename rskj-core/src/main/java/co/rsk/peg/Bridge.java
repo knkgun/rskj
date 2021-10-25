@@ -1104,7 +1104,9 @@ public class Bridge extends PrecompiledContracts.PrecompiledContract {
             byte[] refundAddressInfo = (byte[]) args[4];
             Address userRefundAddress = new Address(
                 bridgeConstants.getBtcParams(),
-                BridgeUtils.extractAddressVersionFromBytes(refundAddressInfo),
+                activations.isActive(ConsensusRule.RSKIP284) ?
+                    BridgeUtils.extractAddressVersionFromUnsignedBytes(refundAddressInfo) :
+                    BridgeUtils.extractAddressVersionFromBytes(refundAddressInfo),
                 BridgeUtils.extractHash160FromBytes(refundAddressInfo)
             );
             // A DataWord cast is used because a SolidityType "address" is decoded using this specific type.
@@ -1113,7 +1115,9 @@ public class Bridge extends PrecompiledContracts.PrecompiledContract {
             byte[] lpAddressInfo = (byte[]) args[6];
             Address lpBtcAddress = new Address(
                 bridgeConstants.getBtcParams(),
-                BridgeUtils.extractAddressVersionFromBytes(lpAddressInfo),
+                activations.isActive(ConsensusRule.RSKIP284) ?
+                    BridgeUtils.extractAddressVersionFromUnsignedBytes(lpAddressInfo) :
+                    BridgeUtils.extractAddressVersionFromBytes(lpAddressInfo),
                 BridgeUtils.extractHash160FromBytes(lpAddressInfo)
             );
             boolean shouldTransferToContract = ((boolean) args[7]);
