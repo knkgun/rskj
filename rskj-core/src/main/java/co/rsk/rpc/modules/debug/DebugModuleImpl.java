@@ -68,9 +68,13 @@ public class DebugModuleImpl implements DebugModule {
     public JsonNode traceTransaction(String transactionHash, Map<String, String> traceOptions) {
         logger.trace("debug_traceTransaction({}, {})", transactionHash, traceOptions);
 
-        if (traceOptions != null && !traceOptions.isEmpty()) {
-            // TODO: implement the logic that takes into account trace options.
-            logger.warn("Received {} trace options. For now trace options are being ignored", traceOptions);
+        TraceOptions options = new TraceOptions(traceOptions);
+
+        if (options.getUnsupportedOptions().size() > 0) {
+            // TODO: implement the logic that takes into account the remaining trace options.
+            logger.warn(
+                    "Received {} trace options. For now they are being ignored",
+                    options.getUnsupportedOptions());
         }
 
         byte[] hash = stringHexToByteArray(transactionHash);
@@ -86,7 +90,7 @@ public class DebugModuleImpl implements DebugModule {
         Transaction tx = block.getTransactionsList().get(txInfo.getIndex());
         txInfo.setTransaction(tx);
 
-        ProgramTraceProcessor programTraceProcessor = new ProgramTraceProcessor();
+        ProgramTraceProcessor programTraceProcessor = new ProgramTraceProcessor(options);
         blockExecutor.traceBlock(programTraceProcessor, 0, block, parent.getHeader(), false, false);
 
         return programTraceProcessor.getProgramTraceAsJsonNode(tx.getHash());
