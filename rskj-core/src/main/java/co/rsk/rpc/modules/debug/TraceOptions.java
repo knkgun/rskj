@@ -19,9 +19,7 @@
 
 package co.rsk.rpc.modules.debug;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class TraceOptions {
@@ -31,23 +29,25 @@ public class TraceOptions {
     private static final String[] OPTIONAL_FIELDS = {
             "disableStorage", "disableMemory", "disableStack"};
 
-    private Set<String> disabledFields;
-    private Set<String> unsupportedOptions;
+    private Set<String> disabledFields = Collections.emptySet();
+    private Set<String> unsupportedOptions = Collections.emptySet();
 
     private TraceOptions() {}
 
     public TraceOptions(Map<String, String> traceOptions) {
-        disabledFields = Arrays
-                .stream(OPTIONAL_FIELDS)
-                .filter(field -> traceOptions
-                        .containsKey(field) && Boolean.parseBoolean(traceOptions.get(field)))
-                .collect(Collectors.toSet());
-        unsupportedOptions = traceOptions
-                .keySet()
-                .stream()
-                .filter(key -> Arrays.stream(SUPPORTED_OPTIONS)
-                        .noneMatch(option -> option.equals(key)))
-                .collect(Collectors.toSet());
+        if (traceOptions != null) {
+            disabledFields = Arrays
+                    .stream(OPTIONAL_FIELDS)
+                    .filter(field -> traceOptions
+                            .containsKey(field) && Boolean.parseBoolean(traceOptions.get(field)))
+                    .collect(Collectors.toSet());
+            unsupportedOptions = traceOptions
+                    .keySet()
+                    .stream()
+                    .filter(key -> Arrays.stream(SUPPORTED_OPTIONS)
+                            .noneMatch(option -> option.equals(key)))
+                    .collect(Collectors.toSet());
+        }
     }
 
     public Set<String> getDisabledFields() {
