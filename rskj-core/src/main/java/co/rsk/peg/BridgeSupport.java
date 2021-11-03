@@ -2713,13 +2713,10 @@ public class BridgeSupport {
     }
 
     protected Coin getAmountSentToAddress(BtcTransaction btcTx, Address btcAddress) {
-        Coin v = Coin.ZERO;
-        for (TransactionOutput o : btcTx.getOutputs()) {
-            if (o.getScriptPubKey().getToAddress(bridgeConstants.getBtcParams()).equals(btcAddress)) {
-                v = v.add(o.getValue());
-            }
-        }
-        return v;
+        Wallet wallet = new Wallet(bridgeConstants.getBtcParams());
+        wallet.addWatchedAddress(btcAddress);
+
+        return btcTx.getValueSentToMe(wallet);
     }
 
    // This method will be used by registerBtcTransfer to save all the data required on storage (utxos, btcTxHash-derivationHash),
