@@ -73,7 +73,7 @@ public class DebugModuleImpl implements DebugModule {
         if (options.getUnsupportedOptions().size() > 0) {
             // TODO: implement the logic that takes into account the remaining trace options.
             logger.warn(
-                    "Received {} trace options. For now they are being ignored",
+                    "Received {} unsupported trace options. For now these are being ignored",
                     options.getUnsupportedOptions());
         }
 

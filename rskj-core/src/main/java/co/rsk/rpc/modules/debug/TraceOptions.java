@@ -26,7 +26,7 @@ public class TraceOptions {
 
     private static final String[] SUPPORTED_OPTIONS = {
             "disableStorage", "disableMemory", "disableStack"};
-    private static final String[] OPTIONAL_FIELDS = {
+    private static final String[] DISABLED_FIELDS = {
             "disableStorage", "disableMemory", "disableStack"};
 
     private Set<String> disabledFields = Collections.emptySet();
@@ -37,7 +37,7 @@ public class TraceOptions {
     public TraceOptions(Map<String, String> traceOptions) {
         if (traceOptions != null) {
             disabledFields = Arrays
-                    .stream(OPTIONAL_FIELDS)
+                    .stream(DISABLED_FIELDS)
                     .filter(field -> traceOptions
                             .containsKey(field) && Boolean.parseBoolean(traceOptions.get(field)))
                     .collect(Collectors.toSet());
