@@ -1128,10 +1128,10 @@ public class RskContext implements NodeContext, NodeBootstrapper {
         }
 
         // then close data stores
-        if (blockStore != null) {
-            logger.trace("closing blockStore.");
-            blockStore.close();
-            logger.trace("blockStore closed.");
+        if (trieStore != null) {
+            logger.trace("disposing trieStore.");
+            trieStore.dispose();
+            logger.trace("trieStore disposed.");
         }
 
         if (stateRootsStore != null) {
@@ -1140,16 +1140,16 @@ public class RskContext implements NodeContext, NodeBootstrapper {
             logger.trace("stateRootsStore closed.");
         }
 
-        if (trieStore != null) {
-            logger.trace("disposing trieStore.");
-            trieStore.dispose();
-            logger.trace("trieStore disposed.");
-        }
-
         if (receiptStore != null) {
             logger.trace("closing receiptStore.");
             receiptStore.close();
             logger.trace("receiptStore closed.");
+        }
+
+        if (blockStore != null) {
+            logger.trace("closing blockStore.");
+            blockStore.close();
+            logger.trace("blockStore closed.");
         }
 
         if (blocksBloomStore != null) {
@@ -1493,7 +1493,8 @@ public class RskContext implements NodeContext, NodeBootstrapper {
                     getBlockValidator(),
                     getBlockExecutor(),
                     getGenesis(),
-                    getStateRootHandler()
+                    getStateRootHandler(),
+                    getRepositoryLocator()
             );
         }
 
