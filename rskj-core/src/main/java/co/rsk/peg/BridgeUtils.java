@@ -626,6 +626,13 @@ public class BridgeUtils {
             (outputSize + 1 + OUTPUT_ADDITIONAL_DATA_SIZE) * outputMultiplier;
     }
 
+    public static Coin getAmountSentToAddress(NetworkParameters networkParameters, Address btcAddress, BtcTransaction btcTx) {
+        Wallet wallet = new Wallet(networkParameters);
+        wallet.addWatchedAddress(btcAddress);
+
+        return btcTx.getValueSentToMe(wallet);
+    }
+
     private static Optional<Script> extractRedeemScriptFromInput(TransactionInput txInput) {
         Script inputScript = txInput.getScriptSig();
         List<ScriptChunk> chunks = inputScript.getChunks();

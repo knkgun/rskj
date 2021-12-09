@@ -1143,7 +1143,7 @@ public class BridgeUtilsTest {
             activations
         ));
 
-        Address randomAddress = PegTestUtils.createRandomBtcAddress();
+        Address randomAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
         BtcTransaction fromRetiringFederationTx = new BtcTransaction(networkParameters);
         fromRetiringFederationTx.addOutput(Coin.COIN, randomAddress);
         TransactionInput fromRetiringFederationTxInput = new TransactionInput(
@@ -1239,7 +1239,7 @@ public class BridgeUtilsTest {
             bridgeConstantsRegtest.getBtcParams()
         );
         List<BtcECKey> federationPrivateKeys = BridgeRegTestConstants.REGTEST_FEDERATION_PRIVATE_KEYS;
-        Address randomAddress = PegTestUtils.createRandomBtcAddress();
+        Address randomAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
 
         BtcTransaction pegOutTx1 = new BtcTransaction(networkParameters);
         pegOutTx1.addOutput(Coin.COIN, randomAddress);
@@ -1279,7 +1279,7 @@ public class BridgeUtilsTest {
         Federation standardFederation = bridgeConstantsRegtest.getGenesisFederation();
 
         // Create a tx from the fast bridge fed to a random address
-        Address randomAddress = PegTestUtils.createRandomBtcAddress();
+        Address randomAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
         BtcTransaction pegOutTx1 = new BtcTransaction(networkParameters);
         pegOutTx1.addOutput(Coin.COIN, randomAddress);
         TransactionInput pegOutInput1 = new TransactionInput(
@@ -1356,7 +1356,7 @@ public class BridgeUtilsTest {
         Federation standardFederation = bridgeConstantsRegtest.getGenesisFederation();
 
         // Create a tx from the erp fed to a random address
-        Address randomAddress = PegTestUtils.createRandomBtcAddress();
+        Address randomAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
         BtcTransaction pegOutTx1 = new BtcTransaction(networkParameters);
         pegOutTx1.addOutput(Coin.COIN, randomAddress);
         TransactionInput pegOutInput1 = new TransactionInput(
@@ -1434,7 +1434,7 @@ public class BridgeUtilsTest {
         Federation standardFederation = bridgeConstantsRegtest.getGenesisFederation();
 
         // Create a tx from the fast bridge erp fed to a random address
-        Address randomAddress = PegTestUtils.createRandomBtcAddress();
+        Address randomAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
         BtcTransaction pegOutTx1 = new BtcTransaction(networkParameters);
         pegOutTx1.addOutput(Coin.COIN, randomAddress);
         TransactionInput pegOutInput1 = new TransactionInput(
@@ -1477,7 +1477,7 @@ public class BridgeUtilsTest {
     @Test
     public void testIsPegOutTx_noRedeemScript() {
         Federation federation = bridgeConstantsRegtest.getGenesisFederation();
-        Address randomAddress = PegTestUtils.createRandomBtcAddress();
+        Address randomAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
 
         BtcTransaction pegOutTx1 = new BtcTransaction(networkParameters);
         pegOutTx1.addOutput(Coin.COIN, randomAddress);
@@ -1495,7 +1495,7 @@ public class BridgeUtilsTest {
     @Test
     public void testIsPegOutTx_invalidRedeemScript() {
         Federation federation = bridgeConstantsRegtest.getGenesisFederation();
-        Address randomAddress = PegTestUtils.createRandomBtcAddress();
+        Address randomAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
         Script invalidRedeemScript = ScriptBuilder.createRedeemScript(2, Arrays.asList(new BtcECKey(), new BtcECKey()));
 
         BtcTransaction pegOutTx1 = new BtcTransaction(networkParameters);
@@ -1513,7 +1513,7 @@ public class BridgeUtilsTest {
 
     @Test
     public void testChangeBetweenFederations() {
-        Address randomAddress = PegTestUtils.createRandomBtcAddress();
+        Address randomAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
         Context btcContext = new Context(networkParameters);
 
         List<BtcECKey> federation1Keys = Stream.of("fa01", "fa02")
@@ -2431,7 +2431,7 @@ public class BridgeUtilsTest {
     @Test
     public void scriptCorrectlySpends_fromGenesisFederation_ok() {
         Federation genesisFederation = bridgeConstantsRegtest.getGenesisFederation();
-        Address destinationAddress = PegTestUtils.createRandomBtcAddress();
+        Address destinationAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
 
         BtcTransaction tx = new BtcTransaction(networkParameters);
         tx.addOutput(Coin.COIN, destinationAddress);
@@ -2450,7 +2450,7 @@ public class BridgeUtilsTest {
     @Test
     public void scriptCorrectlySpends_invalidScript() {
         Federation genesisFederation = bridgeConstantsRegtest.getGenesisFederation();
-        Address destinationAddress = PegTestUtils.createRandomBtcAddress();
+        Address destinationAddress = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
 
         BtcTransaction tx = new BtcTransaction(networkParameters);
         tx.addOutput(Coin.COIN, destinationAddress);
@@ -2472,6 +2472,150 @@ public class BridgeUtilsTest {
         tx.getInput(0).setScriptSig(invalidScript);
 
         assertFalse(BridgeUtils.scriptCorrectlySpendsTx(tx, 0, genesisFederation.getP2SHScript()));
+    }
+
+    private void test_getAmountSentToAddress_oneOutput(String networkId, Address destinationAddress, Address anotherAddress) {
+        NetworkParameters networkParameters = NetworkParameters.fromID(networkId);
+
+        Coin amountToSend = Coin.COIN;
+        BtcTransaction tx = new BtcTransaction(networkParameters);
+        tx.addOutput(amountToSend, destinationAddress);
+
+        Coin amountSentToDestinationAddress = BridgeUtils.getAmountSentToAddress(networkParameters, destinationAddress, tx);
+        Coin amountSentToAnotherAddress = BridgeUtils.getAmountSentToAddress(networkParameters, anotherAddress, tx);
+
+        Assert.assertEquals(amountToSend, amountSentToDestinationAddress);
+        Assert.assertEquals(Coin.ZERO, amountSentToAnotherAddress);
+    }
+
+    private void test_getAmountSentToAddress_threeOutputs_sameAddress(String networkId, Address destinationAddress) {
+        NetworkParameters networkParameters = NetworkParameters.fromID(networkId);
+
+        Coin output1Amount = Coin.COIN;
+        Coin output2Amount = Coin.SATOSHI;
+        Coin output3Amount = Coin.valueOf(20_000L);
+        Coin totalAmountToSend = output1Amount.add(output2Amount).add(output3Amount);
+
+        BtcTransaction tx = new BtcTransaction(networkParameters);
+        tx.addOutput(output1Amount, destinationAddress);
+        tx.addOutput(output2Amount, destinationAddress);
+        tx.addOutput(output3Amount, destinationAddress);
+
+        Coin amountSent = BridgeUtils.getAmountSentToAddress(networkParameters, destinationAddress, tx);
+
+        Assert.assertEquals(totalAmountToSend, amountSent);
+    }
+
+    private void test_getAmountSentToAddress_threeOutputs_differentAddresses(
+        String networkId,
+        Address destinationAddress1,
+        Address destinationAddress2,
+        Address destinationAddress3) {
+
+        NetworkParameters networkParameters = NetworkParameters.fromID(networkId);
+
+        Coin output1Amount = Coin.COIN;
+        Coin output2Amount = Coin.SATOSHI;
+        Coin output3Amount = Coin.valueOf(20_000L);
+
+        BtcTransaction tx = new BtcTransaction(networkParameters);
+        tx.addOutput(output1Amount, destinationAddress1);
+        tx.addOutput(output2Amount, destinationAddress2);
+        tx.addOutput(output3Amount, destinationAddress3);
+
+        Coin amountSentDestinationAddress1 = BridgeUtils.getAmountSentToAddress(networkParameters, destinationAddress1, tx);
+        Coin amountSentDestinationAddress2 = BridgeUtils.getAmountSentToAddress(networkParameters, destinationAddress2, tx);
+        Coin amountSentDestinationAddress3 = BridgeUtils.getAmountSentToAddress(networkParameters, destinationAddress3, tx);
+
+        Assert.assertEquals(output1Amount, amountSentDestinationAddress1);
+        Assert.assertEquals(output2Amount, amountSentDestinationAddress2);
+        Assert.assertEquals(output3Amount, amountSentDestinationAddress3);
+    }
+
+    private void test_getAmountSentToAddress_threeOutputs_twoForSameAddress(String networkId) {
+        NetworkParameters networkParameters = NetworkParameters.fromID(networkId);
+
+        Address destinationAddress1 = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
+        Address destinationAddress2 = PegTestUtils.createRandomP2PKHBtcAddress(networkParameters);
+        Coin output1Amount = Coin.COIN;
+        Coin output2Amount = Coin.SATOSHI;
+        Coin output3Amount = Coin.valueOf(20_000L);
+
+        BtcTransaction tx = new BtcTransaction(networkParameters);
+        tx.addOutput(output1Amount, destinationAddress1);
+        tx.addOutput(output2Amount, destinationAddress1);
+        tx.addOutput(output3Amount, destinationAddress2);
+
+        Coin amountSentDestinationAddress1 = BridgeUtils.getAmountSentToAddress(networkParameters, destinationAddress1, tx);
+        Coin amountSentDestinationAddress2 = BridgeUtils.getAmountSentToAddress(networkParameters, destinationAddress2, tx);
+
+        Assert.assertEquals(output1Amount.add(output2Amount), amountSentDestinationAddress1);
+        Assert.assertEquals(output3Amount, amountSentDestinationAddress2);
+    }
+
+    @Test
+    public void getAmountSentToAddress_oneOutput_p2pkhAddress_testnet() {
+        test_getAmountSentToAddress_oneOutput(NetworkParameters.ID_TESTNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_oneOutput_p2shAddress_testnet() {
+        test_getAmountSentToAddress_oneOutput(NetworkParameters.ID_TESTNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_oneOutput_p2pkhAddress_mainnet() {
+        test_getAmountSentToAddress_oneOutput(NetworkParameters.ID_MAINNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_oneOutput_p2shAddress_mainnet() {
+        test_getAmountSentToAddress_oneOutput(NetworkParameters.ID_MAINNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_sameAddress_p2pkh_testnet() {
+        test_getAmountSentToAddress_threeOutputs_sameAddress(NetworkParameters.ID_TESTNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_sameAddress_p2sh_testnet() {
+        test_getAmountSentToAddress_threeOutputs_sameAddress(NetworkParameters.ID_TESTNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_sameAddress_p2pkh_mainnet() {
+        test_getAmountSentToAddress_threeOutputs_sameAddress(NetworkParameters.ID_MAINNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_sameAddress_p2sh_mainnet() {
+        test_getAmountSentToAddress_threeOutputs_sameAddress(NetworkParameters.ID_MAINNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_differentAddresses_p2pkh_testnet() {
+        test_getAmountSentToAddress_threeOutputs_differentAddresses(NetworkParameters.ID_TESTNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_differentAddresses_p2sh_testnet() {
+        test_getAmountSentToAddress_threeOutputs_differentAddresses(NetworkParameters.ID_TESTNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_differentAddresses_mainnet() {
+        test_getAmountSentToAddress_threeOutputs_differentAddresses(NetworkParameters.ID_MAINNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_twoForSameAddress_testnet() {
+        test_getAmountSentToAddress_threeOutputs_twoForSameAddress(NetworkParameters.ID_TESTNET);
+    }
+
+    @Test
+    public void getAmountSentToAddress_threeOutputs_twoForSameAddress_mainnet() {
+        test_getAmountSentToAddress_threeOutputs_twoForSameAddress(NetworkParameters.ID_MAINNET);
     }
 
     private void test_getSpendWallet(boolean isFastBridgeCompatible) throws UTXOProviderException {
