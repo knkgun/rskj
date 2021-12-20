@@ -64,7 +64,11 @@ public class ProgramTraceProcessor {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        return OBJECT_MAPPER.valueToTree(txTraces);
+        SimpleFilterProvider filterProvider = new SimpleFilterProvider();
+        filterProvider.addFilter("opFilter",
+                SimpleBeanPropertyFilter.serializeAllExcept(traceOptions.getDisabledFields()));
+
+        return OBJECT_MAPPER.setFilterProvider(filterProvider).valueToTree(txTraces);
     }
 
     public JsonNode getProgramTraceAsJsonNode(Keccak256 txHash) {

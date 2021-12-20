@@ -100,9 +100,13 @@ public class DebugModuleImpl implements DebugModule {
     public JsonNode traceBlock(String blockHash, Map<String, String> traceOptions) {
         logger.trace("debug_traceBlockByHash({}, {})", blockHash, traceOptions);
 
-        if (traceOptions != null && !traceOptions.isEmpty()) {
-            // TODO: implement the logic that takes into account trace options.
-            logger.warn("Received {} trace options. For now trace options are being ignored", traceOptions);
+        TraceOptions options = new TraceOptions(traceOptions);
+
+        if (options.getUnsupportedOptions().size() > 0) {
+            // TODO: implement the logic that takes into account the remaining trace options.
+            logger.warn(
+                    "Received {} unsupported trace options. For now these are being ignored",
+                    options.getUnsupportedOptions());
         }
 
         byte[] bHash = stringHexToByteArray(blockHash);
@@ -114,7 +118,7 @@ public class DebugModuleImpl implements DebugModule {
 
         Block parent = blockStore.getBlockByHash(block.getParentHash().getBytes());
 
-        ProgramTraceProcessor programTraceProcessor = new ProgramTraceProcessor();
+        ProgramTraceProcessor programTraceProcessor = new ProgramTraceProcessor(options);
         blockExecutor.traceBlock(programTraceProcessor, 0, block, parent.getHeader(), false, false);
 
         List<Keccak256> txHashes = block.getTransactionsList().stream()
